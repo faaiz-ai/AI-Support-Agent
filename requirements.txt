@@ -1,0 +1,15 @@
+# Graph orchestration (the state machine that runs the whole agent)
+langgraph>=0.2.0
+
+# LLM provider used by app/config.py (ChatGroq)
+langchain-groq>=0.2.0
+
+# Data validation for all the structured LLM outputs in app/schemas/outputs.py
+pydantic>=2.0.0
+
+# Loads GROQ_API_KEY from the .env file
+python-dotenv>=1.0.0
+
+# Web API + server for app/api.py, and static file serving for the frontend
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0

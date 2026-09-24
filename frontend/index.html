@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Support Agent</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e2229;
+    --border: #2a2f38;
+    --text: #e8eaed;
+    --text-dim: #9aa1ac;
+    --accent: #6d8cff;
+    --accent-2: #4a63cc;
+    --user-bubble: #2c3550;
+    --agent-bubble: #1e2229;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #4ade80;
+    flex-shrink: 0;
+  }
+  header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+  }
+  header .sub {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  header .reset-btn {
+    margin-left: auto;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  header .reset-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .msg {
+    max-width: 82%;
+    padding: 11px 15px;
+    border-radius: var(--radius);
+    font-size: 14.5px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: var(--user-bubble);
+    border-bottom-right-radius: 4px;
+  }
+  .msg.agent {
+    align-self: flex-start;
+    background: var(--agent-bubble);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .msg.system {
+    align-self: center;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 12.5px;
+    text-align: center;
+  }
+  .msg.error {
+    align-self: flex-start;
+    background: #3a1f24;
+    border: 1px solid #5c2b32;
+    color: #ffb4bd;
+  }
+
+  .typing {
+    align-self: flex-start;
+    display: flex;
+    gap: 4px;
+    padding: 13px 16px;
+    background: var(--agent-bubble);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    border-bottom-left-radius: 4px;
+  }
+  .typing span {
+    width: 6px;
+    height: 6px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    animation: bounce 1.2s infinite ease-in-out;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
+
+  form#composer {
+    display: flex;
+    gap: 10px;
+    padding: 16px 20px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+  }
+  #input {
+    flex: 1;
+    resize: none;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 14.5px;
+    font-family: inherit;
+    max-height: 140px;
+    line-height: 1.4;
+  }
+  #input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  #send {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 0 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  #send:hover:not(:disabled) { background: var(--accent-2); }
+  #send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  #messages::-webkit-scrollbar { width: 8px; }
+  #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="dot"></div>
+    <div>
+      <h1>Support Agent</h1>
+      <div class="sub" id="status-line">Ask about a Docker, network, application, or account issue</div>
+    </div>
+    <button class="reset-btn" id="reset-btn">New conversation</button>
+  </header>
+
+  <div id="messages"></div>
+
+  <form id="composer">
+    <textarea id="input" rows="1" placeholder="Describe your issue…" autofocus></textarea>
+    <button id="send" type="submit">Send</button>
+  </form>
+</div>
+
+<script>
+  // Point this at your FastAPI server if the frontend is hosted
+  // separately from the API (e.g. during local dev with a
+  // different dev server). When served by FastAPI's StaticFiles
+  // (the default here), same-origin relative paths work as-is.
+  const API_BASE = "";
+
+  const messagesEl = document.getElementById("messages");
+  const form = document.getElementById("composer");
+  const input = document.getElementById("input");
+  const sendBtn = document.getElementById("send");
+  const resetBtn = document.getElementById("reset-btn");
+  const statusLine = document.getElementById("status-line");
+
+  let threadId = null;
+  let waitingForInput = false; // true once the first turn is sent
+  let busy = false;
+
+  function addMessage(role, text) {
+    const div = document.createElement("div");
+    div.className = `msg ${role}`;
+    div.textContent = text;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return div;
+  }
+
+  function showTyping() {
+    const div = document.createElement("div");
+    div.className = "typing";
+    div.id = "typing-indicator";
+    div.innerHTML = "<span></span><span></span><span></span>";
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function hideTyping() {
+    const el = document.getElementById("typing-indicator");
+    if (el) el.remove();
+  }
+
+  function setBusy(state) {
+    busy = state;
+    sendBtn.disabled = state;
+    input.disabled = state;
+  }
+
+  function resetConversation() {
+    threadId = null;
+    waitingForInput = false;
+    messagesEl.innerHTML = "";
+    statusLine.textContent = "Ask about a Docker, network, application, or account issue";
+    addMessage("system", "New conversation started.");
+    input.focus();
+  }
+
+  async function sendMessage(text) {
+    setBusy(true);
+    showTyping();
+    try {
+      const isFirstTurn = threadId === null;
+      const url = isFirstTurn ? `${API_BASE}/api/chat/start` : `${API_BASE}/api/chat/reply`;
+      const body = isFirstTurn
+        ? { message: text }
+        : { thread_id: threadId, message: text };
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      hideTyping();
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        addMessage("error", err.detail || `Request failed (${res.status}).`);
+        return;
+      }
+
+      const data = await res.json();
+      threadId = data.thread_id;
+      addMessage("agent", data.reply);
+
+      if (data.done) {
+        threadId = null;
+        waitingForInput = false;
+        statusLine.textContent = "Ready for a new issue.";
+      } else if (data.waiting_for_input) {
+        statusLine.textContent = "Waiting for your response…";
+      } 
+    } catch (e) {
+      hideTyping();
+      addMessage("error", `Couldn't reach the server: ${e.message}`);
+    } finally {
+      setBusy(false);
+      input.focus();
+    }
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text || busy) return;
+    addMessage("user", text);
+    input.value = "";
+    input.style.height = "auto";
+    sendMessage(text);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  input.addEventListener("input", () => {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 140) + "px";
+  });
+
+  resetBtn.addEventListener("click", resetConversation);
+
+  addMessage("system", "Describe your issue below to get started.");
+</script>
+</body>
+</html>
