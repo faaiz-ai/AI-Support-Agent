@@ -1,202 +1,160 @@
 # Agentic AI Technical Support Agent
 
-An Agentic AI technical-support system built with **LangGraph, LangChain, Groq, and LangSmith**. The agent understands technical issues, classifies them, performs structured troubleshooting, tracks previous attempts, adapts when solutions fail, and escalates unresolved problems.
+An **Agentic AI technical-support system** built with **LangGraph** that diagnoses technical issues, maintains conversation state, adapts troubleshooting based on user feedback, avoids repeating failed solutions, handles multiple problems, and escalates unresolved issues.
 
-## Project Objective
+The project is designed to demonstrate how **stateful Agentic AI workflows** can be built using graph-based orchestration rather than a simple question-answering chatbot.
 
-The goal of this project is to build a stateful technical-support agent that can:
+## 🚀 What This Agent Does
 
-* Understand the user's technical problem
-* Ask for missing information when required
-* Classify problems into support categories
-* Perform category-specific diagnosis
-* Ask diagnostic questions and use the user's feedback
-* Provide one troubleshooting solution at a time
-* Track previously attempted solutions
-* Avoid repeating failed solutions
-* Generate alternative solutions when troubleshooting fails
-* Support multiple problems in a single conversation
-* Escalate when the issue cannot be resolved
+The agent follows a structured troubleshooting workflow:
 
-## Example Interaction
+* Understands the user's technical problem
+* Requests missing information when necessary
+* Classifies the problem into a support category
+* Routes the issue to a specialized troubleshooting subgraph
+* Asks diagnostic questions before suggesting solutions
+* Provides **one troubleshooting action at a time**
+* Waits for user feedback before continuing
+* Tracks previously attempted solutions
+* Avoids repeating failed solutions
+* Generates alternative troubleshooting approaches
+* Handles multiple technical problems in one conversation
+* Escalates when an issue remains unresolved
 
-### Docker GPU Troubleshooting
+## 🧠 Why This Is Agentic AI
+
+This project goes beyond a basic chatbot that generates an answer and stops.
+
+The agent maintains state throughout the troubleshooting process and uses the outcome of previous actions to determine what to do next.
+
+For example:
+
+```text
+User Problem
+     ↓
+Understand Request
+     ↓
+Classify Problem
+     ↓
+Route to Specialized Subgraph
+     ↓
+Diagnose
+     ↓
+Ask Diagnostic Question
+     ↓
+Generate One Solution
+     ↓
+User Feedback
+     ↓
+┌───────────────┴───────────────┐
+│                               │
+Solved                         Failed
+│                               │
+↓                               ↓
+Resolve                  Record Attempt
+                                ↓
+                         Generate Different
+                            Solution
+                                ↓
+                         ┌──────┴──────┐
+                         │             │
+                      Solved        Still Failed
+                         │             │
+                         ↓             ↓
+                      Resolve       Escalate
+```
+
+This workflow demonstrates:
+
+* Stateful decision making
+* Conditional routing
+* Feedback-driven execution
+* Retry logic
+* Memory of previous attempts
+* Human-in-the-loop interaction
+* Specialized subgraphs
+* Escalation logic
+
+## 🏗️ Architecture
+
+The system uses a **parent graph** to manage the overall support workflow and specialized subgraphs for different technical problem categories.
+
+### Parent Graph
+
+The parent graph handles:
+
+* Request understanding
+* Clarification
+* Problem classification
+* Problem queue management
+* Routing
+* Shared state
+* Multi-problem conversations
+* Final response handling
+
+### Specialized Troubleshooting Subgraphs
+
+The current system contains four specialized workflows:
+
+| Category    | Purpose                                      |
+| ----------- | -------------------------------------------- |
+| Docker      | Container and Docker-related troubleshooting |
+| Network     | Connectivity and networking troubleshooting  |
+| Application | Application/backend troubleshooting          |
+| Account     | Account-related troubleshooting              |
+
+Each subgraph has its own diagnosis and solution workflow while operating on the shared support state.
+
+## 🔄 Example: Docker GPU Troubleshooting
+
+A user might report:
+
+> My Docker container cannot access the GPU.
+
+Instead of immediately providing a large list of commands, the agent investigates the problem step by step.
+
+Example workflow:
 
 ```text
 User:
 My Docker container cannot access the GPU.
 
 Agent:
-Was the container started with the `--gpus` flag (or equivalent)
-to expose the GPU to the container?
+Was the container started with GPU access enabled?
 
 User:
-I'm not sure. How can I check?
+I'm not sure.
 
 Agent:
-Please run `nvidia-smi` on the host and provide the output.
+Please check the host with nvidia-smi and provide the result.
 
 User:
-nvidia-smi has failed because it couldn't communicate with
-the NVIDIA driver.
+nvidia-smi cannot communicate with the NVIDIA driver.
 
 Agent:
+Try the following troubleshooting action:
 sudo apt install nvidia-utils-535
 
 User:
-nvidia-smi still fails.
+It still doesn't work.
 
 Agent:
-sudo apt install nvidia-driver-535
+The previous solution failed.
+Let's try a different troubleshooting approach.
 ```
 
-This demonstrates the agent's diagnostic process, solution attempts, and ability to generate a different troubleshooting approach after a failed solution.
+The important behavior is that the agent **records the failed attempt and changes its troubleshooting strategy** rather than simply repeating the same recommendation.
 
-## Screenshots
+## 🔍 LangSmith Observability
 
-### Agent Conversation
-
-The chatbot interface showing the Docker troubleshooting conversation, including diagnostic questions, user feedback, and alternative troubleshooting solutions.
-
-![Agent Conversation](images/agent-conversation.png)
-
-### LangSmith Trace
-
-The LangSmith trace showing the corresponding LangGraph execution, including the parent graph, routing, Docker subgraph, diagnostic/troubleshooting nodes, and final response.
-
-![LangSmith Trace](images/langsmith-trace.png)
-
-## Core Workflow
-
-```text
-                    User Request
-                         │
-                         ▼
-                  Understand Request
-                         │
-             ┌───────────┴───────────┐
-             │                       │
-        Needs Clarification      Can Classify
-             │                       │
-             ▼                       ▼
-       Ask User for Info          Classify
-                                     │
-                 ┌───────────────────┼───────────────────┐
-                 │                   │                   │
-              Docker              Network          Application / Account
-                 │                   │                   │
-                 └───────────────────┴───────────────────┘
-                                     │
-                                     ▼
-                           Category Subgraph
-                                     │
-                                     ▼
-                               Diagnose Issue
-                                     │
-                                     ▼
-                            Ask Diagnostic Question
-                                     │
-                                     ▼
-                              Analyze Feedback
-                                     │
-                                     ▼
-                           Generate One Solution
-                                     │
-                                     ▼
-                              User Feedback
-                                     │
-                         ┌───────────┴───────────┐
-                         │                       │
-                      Solved                  Failed
-                         │                       │
-                         ▼                       ▼
-                    Resolve Issue         Record Attempt
-                                                 │
-                                                 ▼
-                                      Generate Different Solution
-                                                 │
-                                      ┌──────────┴──────────┐
-                                      │                     │
-                                   Solved                Still Failed
-                                      │                     │
-                                      ▼                     ▼
-                                   Resolve              Escalate
-```
-
-## Agent Architecture
-
-The system uses a **parent graph** to manage the overall support workflow and specialized subgraphs for different technical problem categories.
-
-### Parent Graph
-
-The parent graph is responsible for:
-
-* Understanding the request
-* Handling clarification
-* Classifying the problem
-* Managing the problem queue
-* Routing to the appropriate support subgraph
-* Maintaining shared state
-* Handling multiple problems
-* Returning the final response
-
-### Specialized Subgraphs
-
-The project currently supports four technical categories:
-
-* **Docker**
-* **Network**
-* **Application**
-* **Account**
-
-Each category has its own troubleshooting workflow while sharing the overall support-state architecture.
-
-## Key Agentic Behaviors
-
-### Stateful Troubleshooting
-
-The agent maintains state throughout the troubleshooting process instead of treating every message as an independent request.
-
-### Diagnostic Questions
-
-The agent can pause its workflow and ask the user for additional information before deciding on a solution.
-
-### One Solution at a Time
-
-The agent presents one troubleshooting action at a time and waits for the user's feedback before continuing.
-
-### Failed Solution Tracking
-
-Previously attempted solutions are stored in `attempted_solutions`.
-
-This allows the agent to recognize failed attempts and avoid simply repeating the same solution.
-
-### Feedback-Driven Troubleshooting
-
-The agent uses user feedback to determine whether the current solution worked and whether additional troubleshooting is required.
-
-### Alternative Solutions
-
-When a solution fails, the agent can generate a different troubleshooting approach based on the updated state.
-
-### Multi-Problem Support
-
-The agent can identify and process multiple technical problems within a single conversation using a problem queue.
-
-### Escalation
-
-When troubleshooting cannot resolve an issue after the configured retry process, the agent can escalate the problem instead of continuing indefinitely.
-
-## LangSmith Observability
-
-**LangSmith** is used to trace and inspect the agent's execution.
+The project uses **LangSmith** to inspect the execution of the LangGraph workflow.
 
 The traces provide visibility into:
 
-* Parent graph execution
 * Request understanding
 * Classification
-* Problem routing
+* Conditional routing
+* Problem queue handling
 * Subgraph execution
 * Diagnostic nodes
 * Solution generation
@@ -204,44 +162,51 @@ The traces provide visibility into:
 * Retry behavior
 * State transitions
 
-This makes it possible to inspect how a user request moves through the LangGraph workflow rather than only observing the final chatbot response.
+This makes it possible to inspect **how the agent reached a response**, rather than only looking at the final chatbot message.
 
-## Technology Stack
+### Agent Conversation
 
-| Technology        | Purpose                                         |
-| ----------------- | ----------------------------------------------- |
-| Python            | Core development                                |
-| LangGraph         | Stateful agent workflow and graph orchestration |
-| LangChain         | LLM and agent components                        |
-| Groq              | LLM inference                                   |
-| LangSmith         | Tracing and observability                       |
-| FastAPI           | Backend API                                     |
-| HTML / JavaScript | Frontend chat interface                         |
-| InMemorySaver     | LangGraph checkpointing during development      |
+![Agent Conversation](app/images/agent_conversation%281%29.png)
 
-## Project Structure
+### LangSmith Trace
+
+![LangSmith Trace](app/images/langsmith_trace%281%29.png)
+
+Additional screenshots are available in [`app/images/`](app/images/).
+
+## 🛠️ Technology Stack
+
+| Technology        | Role                                      |
+| ----------------- | ----------------------------------------- |
+| Python            | Core development                          |
+| LangGraph         | Stateful workflow orchestration           |
+| LangChain         | LLM integration and structured components |
+| Groq              | LLM inference                             |
+| LangSmith         | Tracing and observability                 |
+| FastAPI           | Backend API                               |
+| HTML / JavaScript | Web-based frontend                        |
+| InMemorySaver     | Development-time LangGraph checkpointing  |
+
+## 📁 Project Structure
 
 ```text
-langgraph-project-updated/
+AI-Support-Agent/
 │
 ├── app/
 │   ├── api.py
 │   ├── config.py
 │   │
 │   ├── graph/
-│   │   ├── __init__.py
 │   │   ├── parent_graph.py
 │   │   ├── state.py
 │   │   │
 │   │   └── subgraphs/
-│   │       ├── __init__.py
 │   │       ├── account.py
 │   │       ├── application.py
 │   │       ├── docker.py
 │   │       └── network.py
 │   │
 │   ├── nodes/
-│   │   ├── __init__.py
 │   │   ├── clarification.py
 │   │   ├── classify.py
 │   │   ├── general_answer.py
@@ -249,83 +214,47 @@ langgraph-project-updated/
 │   │   └── understand.py
 │   │
 │   └── schemas/
-│       ├── __init__.py
 │       └── outputs.py
 │
-├── chatbot.py
 ├── frontend/
 │   └── index.html
-├── images/
-│   ├── agent-conversation.png
-│   └── langsmith-trace.png
-├── notebooks/
-│   └── LangGraph_Project_Updated.ipynb
-├── tests/
-│   └── .gitkeep
-├── .gitignore
-├── README.md
+│
+├── app/images/
+│   ├── agent_conversation(1).png
+│   ├── agent_conversation(2).png
+│   ├── langsmith_trace(1).png
+│   ├── langsmith_trace(2).png
+│   └── langsmith_trace(3).png
+│
+├── chatbot.py
 ├── requirements.txt
-└── test.py
+├── README.md
+└── .gitignore
 ```
 
-## Main Components
+## ⚙️ Setup
 
-### `app/graph/state.py`
-
-Defines the shared `SupportState` used throughout the parent graph and specialized subgraphs.
-
-### `app/graph/parent_graph.py`
-
-Controls the main workflow, including understanding, classification, problem queuing, routing, and subgraph execution.
-
-### `app/graph/subgraphs/`
-
-Contains the specialized troubleshooting workflows:
-
-* `docker.py`
-* `network.py`
-* `application.py`
-* `account.py`
-
-### `app/nodes/`
-
-Contains shared nodes responsible for understanding requests, classification, clarification, and general responses.
-
-### `app/schemas/`
-
-Contains structured output schemas used by the agent.
-
-### `app/api.py`
-
-Provides the FastAPI backend for communicating with the frontend and maintaining conversation threads.
-
-### `frontend/index.html`
-
-Provides the web-based chatbot interface.
-
-## Setup
-
-### 1. Clone the Repository
+### 1. Clone the repository
 
 ```bash
-git clone <your-repository-url>
-cd langgraph-project-updated
+git clone https://github.com/faaiz-ai/AI-Support-Agent.git
+cd AI-Support-Agent
 ```
 
-### 2. Create a Virtual Environment
+### 2. Create a virtual environment
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 3. Install Dependencies
+### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment Variables
+### 4. Configure environment variables
 
 Create a `.env` file:
 
@@ -336,52 +265,61 @@ LANGSMITH_TRACING=true
 LANGSMITH_PROJECT=langgraph-support-agent
 ```
 
-Do not commit `.env` to the repository.
+Do **not** commit `.env` to the repository.
 
-### 5. Start the Backend
+### 5. Start the application
 
 ```bash
 uvicorn app.api:app --reload --port 8000
 ```
 
-Then open the frontend in your browser.
+Then open the frontend interface in your browser.
 
-## Development Focus
+## 🎯 Key Concepts Demonstrated
 
-This project focuses on building practical **Agentic AI workflows** rather than a simple question-answering chatbot.
-
-The main areas explored include:
+This project focuses on practical Agentic AI development and explores:
 
 * LangGraph state management
-* Conditional graph routing
+* Graph-based workflow orchestration
+* Conditional routing
 * Specialized subgraphs
 * Interrupt and resume workflows
+* Human-in-the-loop interaction
 * Stateful troubleshooting
-* Feedback-driven decision making
-* Retry and escalation logic
+* Feedback-driven decisions
+* Failed-solution tracking
+* Retry and alternative-solution logic
 * Multi-problem handling
-* LangSmith tracing and observability
-* API integration
+* Escalation
+* LangSmith tracing
+* FastAPI integration
 * Frontend integration
 
-## Future Improvements
+## 🔮 Future Improvements
 
-Potential future improvements include:
+Potential next steps include:
 
 * Persistent production-grade checkpoint storage
-* More technical support categories
-* Improved diagnostic knowledge sources
+* Additional technical support categories
 * Retrieval-Augmented Generation (RAG)
 * Authentication and user management
 * Production deployment
 * Expanded automated testing
-* More advanced observability and evaluation
+* More advanced agent evaluation
+* Improved observability
 
-## Author
+## 👨‍💻 Author
 
 **Faaiz Nawaz**
 
-Agentic AI & Machine Learning Engineer
+Machine Learning & Agentic AI Engineer
 
-Focused on **Agentic AI, LangGraph, LangChain, LangSmith, Computer Vision, and Machine Learning**.
+Focused on:
+
+**Agentic AI · LangGraph · LangChain · LangSmith · Computer Vision · Machine Learning**
+
+---
+
+⭐ If you find the project useful, feel free to explore the implementation and LangGraph workflow.
+
 
